@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<!--
+    Todo管理アプリ
+    要件定義書: 作業指示_要件定義.md に基づく実装
+    
+    機能要件: F-001 ～ F-015 をすべて実装
+    非機能要件: 性能、可用性、保守性、セキュリティ、インフラ、サイト要件を満たす
+    
+    実装技術:
+    - HTML、CSS、JavaScriptのみ（外部ライブラリ不使用）
+    - localStorageによるデータ永続化
+    - mailtoリンクによるメール送信
+    - レスポンシブデザイン対応
+-->
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo管理アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color-1: #667eea;
+            --primary-color-2: #764ba2;
+            --stat-card-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --button-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --body-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--body-bg);
+            min-height: 100vh;
+            padding: 20px;
+            transition: background 0.3s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin: 0;
+        }
+
+        .settings-button {
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+        }
+
+        .settings-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="email"],
+        input[type="color"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color-1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 15px;
+        }
+
+        button {
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-add {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .todo-list {
+            margin-top: 30px;
+        }
+
+        .todo-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .todo-item:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .todo-item.due-tomorrow {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .todo-item.due-today {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .todo-item.overdue {
+            background: #f5c6cb;
+            border-color: #c82333;
+        }
+
+        .todo-item.completed {
+            opacity: 0.6;
+        }
+
+        .todo-content {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .todo-date {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .todo-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .status-not-started {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .status-in-progress {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .status-completed {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .btn-edit,
+        .btn-delete {
+            padding: 8px 15px;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+
+        .btn-edit {
+            background: #17a2b8;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+        }
+
+        .btn-send-email {
+            background: #28a745;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-size: 18px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--stat-card-bg);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat-card h3 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .color-picker-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .color-picker-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-picker-item label {
+            margin: 0;
+            flex: 1;
+        }
+
+        .color-picker-item input[type="color"] {
+            width: 60px;
+            height: 40px;
+            padding: 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .theme-presets {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .theme-preset {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .theme-preset:hover {
+            border-color: var(--primary-color-1);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .todo-item {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+
+            .header-section {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-section">
+            <h1>📋 Todo管理アプリ</h1>
+            <button class="settings-button" onclick="openSettingsModal()">⚙️ 設定</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h3 id="total-count">0</h3>
+                <p>総タスク数</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="in-progress-count">0</h3>
+                <p>進行中</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="not-started-count">0</h3>
+                <p>未実施</p>
+            </div>
+        </div>
+
+        <div class="todo-list">
+            <h2>Todoリスト</h2>
+            <div id="todo-container"></div>
+        </div>
+
+        <div class="form-section">
+            <h2>新しいTodoを追加</h2>
+            <div class="form-group">
+                <label for="todo-text">実施事項</label>
+                <input type="text" id="todo-text" placeholder="やるべきことを入力してください">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="todo-date">納期</label>
+                    <input type="date" id="todo-date">
+                </div>
+                <div class="form-group">
+                    <label for="todo-status">ステータス</label>
+                    <select id="todo-status">
+                        <option value="not-started">未実施</option>
+                        <option value="in-progress">進行中</option>
+                        <option value="completed">完了</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-add" onclick="addTodo()">追加</button>
+        </div>
+
+        <button class="btn-send-email" onclick="sendEmail()">📧 未完了タスクをメール送信</button>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>Todoを編集</h2>
+            <div class="form-group">
+                <label for="edit-text">実施事項</label>
+                <input type="text" id="edit-text">
+            </div>
+            <div class="form-group">
+                <label for="edit-date">納期</label>
+                <input type="date" id="edit-date">
+            </div>
+            <div class="form-group">
+                <label for="edit-status">ステータス</label>
+                <select id="edit-status">
+                    <option value="not-started">未実施</option>
+                    <option value="in-progress">進行中</option>
+                    <option value="completed">完了</option>
+                </select>
+            </div>
+            <button onclick="saveEdit()">保存</button>
+            <button class="btn-delete" onclick="cancelEdit()">キャンセル</button>
+        </div>
+    </div>
+
+    <!-- 設定モーダル -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSettingsModal()">&times;</span>
+            <h2>設定</h2>
+            
+            <div class="form-group">
+                <label for="email-address">メールアドレス</label>
+                <input type="email" id="email-address" placeholder="nomurakengo@aidemy.co.jp">
+            </div>
+
+            <div class="form-group">
+                <label>カラーテーマ</label>
+                <div class="color-picker-group">
+                    <div class="color-picker-item">
+                        <label>色1:</label>
+                        <input type="color" id="color-1" value="#667eea">
+                    </div>
+                    <div class="color-picker-item">
+                        <label>色2:</label>
+                        <input type="color" id="color-2" value="#764ba2">
+                    </div>
+                </div>
+                <div class="theme-presets">
+                    <div class="theme-preset" onclick="applyTheme('purple')">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 30px; border-radius: 4px; margin-bottom: 5px;"></div>
+                        パープル
+                    </div>
+                    <div class="theme-preset" onclick="applyTheme('blue')">
+                        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); height: 30px; border-radius: 4px; margin-bottom: 5px;"></div>
+                        ブルー
+                    </div>
+                    <div class="theme-preset" onclick="applyTheme('green')">
+                        <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); height: 30px; border-radius: 4px; margin-bottom: 5px;"></div>
+                        グリーン
+                    </div>
+                    <div class="theme-preset" onclick="applyTheme('orange')">
+                        <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); height: 30px; border-radius: 4px; margin-bottom: 5px;"></div>
+                        オレンジ
+                    </div>
+                    <div class="theme-preset" onclick="applyTheme('red')">
+                        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); height: 30px; border-radius: 4px; margin-bottom: 5px;"></div>
+                        レッド
+                    </div>
+                    <div class="theme-preset" onclick="applyTheme('dark')">
+                        <div style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); height: 30px; border-radius: 4px; margin-bottom: 5px;"></div>
+                        ダーク
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="saveSettings()">保存</button>
+            <button class="btn-delete" onclick="closeSettingsModal()">キャンセル</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Todo管理アプリ - 要件定義書に基づく実装
+         * 機能要件: F-001 ～ F-015 を実装
+         * 非機能要件: 性能、可用性、保守性、セキュリティ要件を満たす
+         */
+
+        // グローバル変数
+        let todos = [];                    // 未完了Todoリスト（F-009: 完了リスト管理機能）
+        let completedTodos = [];            // 完了Todoリスト（通常画面には表示しない）
+        let editingIndex = -1;              // 編集中のTodoのインデックス
+        let emailAddress = 'nomurakengo@aidemy.co.jp';  // メールアドレス（F-012: デフォルト値）
+        let emailInterval = null;          // 自動メール送信のインターバルID
+
+        /**
+         * F-015: データ永続化機能
+         * ページ読み込み時にlocalStorageからデータを復元
+         */
+        function loadTodos() {
+            try {
+                const saved = localStorage.getItem('todos');
+                const savedCompleted = localStorage.getItem('completedTodos');
+                const savedEmail = localStorage.getItem('emailAddress');
+                const savedTheme = localStorage.getItem('theme');
+                
+                if (saved) {
+                    todos = JSON.parse(saved);
+                }
+                if (savedCompleted) {
+                    completedTodos = JSON.parse(savedCompleted);
+                }
+                if (savedEmail) {
+                    emailAddress = savedEmail;
+                }
+                if (savedTheme) {
+                    const theme = JSON.parse(savedTheme);
+                    applyCustomTheme(theme.color1, theme.color2);
+                }
+            } catch (error) {
+                console.error('データの読み込みに失敗しました:', error);
+                // エラー時は空の配列で初期化
+                todos = [];
+                completedTodos = [];
+            }
+            
+            renderTodos();
+            updateStats();
+            scheduleDailyEmail();
+        }
+
+        /**
+         * F-015: データ永続化機能
+         * TodoデータをlocalStorageに保存
+         */
+        function saveTodos() {
+            try {
+                localStorage.setItem('todos', JSON.stringify(todos));
+                localStorage.setItem('completedTodos', JSON.stringify(completedTodos));
+            } catch (error) {
+                console.error('データの保存に失敗しました:', error);
+                alert('データの保存に失敗しました。ブラウザのストレージ容量を確認してください。');
+            }
+        }
+
+        /**
+         * F-001: Todo登録機能
+         * 実施事項、納期、ステータスを入力してTodoを登録する
+         */
+        function addTodo() {
+            const text = document.getElementById('todo-text').value.trim();
+            const date = document.getElementById('todo-date').value;
+            const status = document.getElementById('todo-status').value;
+
+            if (!text) {
+                alert('実施事項を入力してください');
+                return;
+            }
+
+            if (!date) {
+                alert('納期を設定してください');
+                return;
+            }
+
+            const todo = {
+                id: Date.now(),
+                text: text,
+                date: date,
+                status: status,
+                createdAt: new Date().toISOString()
+            };
+
+            // F-009: 完了リスト管理機能 - 完了ステータスの場合は完了リストに追加
+            if (status === 'completed') {
+                completedTodos.push(todo);
+            } else {
+                todos.push(todo);
+            }
+
+            // フォームをリセット
+            document.getElementById('todo-text').value = '';
+            document.getElementById('todo-date').value = '';
+            document.getElementById('todo-status').value = 'not-started';
+
+            saveTodos();
+            renderTodos();
+            updateStats();
+        }
+
+        /**
+         * F-004: Todo削除機能
+         * 完了したTodoを削除し、完了リストに移動する（F-009: 完了リスト管理機能）
+         */
+        function deleteTodo(id) {
+            const index = todos.findIndex(t => t.id === id);
+            if (index !== -1) {
+                const todo = todos[index];
+                todo.status = 'completed';
+                completedTodos.push(todo);
+                todos.splice(index, 1);
+                saveTodos();
+                renderTodos();
+                updateStats();
+            }
+        }
+
+        /**
+         * F-003: Todo編集機能
+         * 編集モーダルを開き、Todoの情報を表示する
+         */
+        function editTodo(id) {
+            const index = todos.findIndex(t => t.id === id);
+            if (index !== -1) {
+                editingIndex = index;
+                const todo = todos[index];
+                document.getElementById('edit-text').value = todo.text;
+                document.getElementById('edit-date').value = todo.date;
+                document.getElementById('edit-status').value = todo.status;
+                document.getElementById('editModal').style.display = 'block';
+            }
+        }
+
+        /**
+         * F-003: Todo編集機能
+         * 編集内容を保存する
+         * F-009: 完了リスト管理機能 - ステータスが完了になったら完了リストに移動
+         */
+        function saveEdit() {
+            if (editingIndex === -1) return;
+
+            const text = document.getElementById('edit-text').value.trim();
+            const date = document.getElementById('edit-date').value;
+            const status = document.getElementById('edit-status').value;
+
+            if (!text || !date) {
+                alert('すべての項目を入力してください');
+                return;
+            }
+
+            const todo = todos[editingIndex];
+            const oldStatus = todo.status;
+
+            todo.text = text;
+            todo.date = date;
+            todo.status = status;
+
+            // F-009: 完了リスト管理機能 - ステータスが完了になったら完了リストに移動
+            if (status === 'completed' && oldStatus !== 'completed') {
+                completedTodos.push(todo);
+                todos.splice(editingIndex, 1);
+            }
+
+            closeEditModal();
+            saveTodos();
+            renderTodos();
+            updateStats();
+        }
+
+        /**
+         * 編集モーダルを閉じる
+         */
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingIndex = -1;
+        }
+
+        /**
+         * 編集をキャンセル
+         */
+        function cancelEdit() {
+            closeEditModal();
+        }
+
+        /**
+         * F-008: 納期前日警告機能
+         * 納期に基づいて警告クラスを決定する
+         * - 期限切れ: overdue
+         * - 納期当日: due-today
+         * - 納期前日: due-tomorrow
+         */
+        function getDateClass(dateString) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dueDate = new Date(dateString);
+            dueDate.setHours(0, 0, 0, 0);
+            const diffTime = dueDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 0) {
+                return 'overdue';      // 期限切れ
+            } else if (diffDays === 0) {
+                return 'due-today';    // 納期当日
+            } else if (diffDays === 1) {
+                return 'due-tomorrow'; // 納期前日（F-008要件）
+            }
+            return '';
+        }
+
+        /**
+         * F-002: Todoリスト表示機能
+         * 登録されたTodoをリスト形式で表示する
+         * 実施事項、納期、ステータスを表示する（F-002要件）
+         */
+        function renderTodos() {
+            const container = document.getElementById('todo-container');
+            
+            if (todos.length === 0) {
+                container.innerHTML = '<div class="empty-message">Todoがありません。新しいTodoを追加してください。</div>';
+                return;
+            }
+
+            container.innerHTML = todos.map(todo => {
+                const dateClass = getDateClass(todo.date);  // F-008: 納期前日警告機能
+                const statusText = {
+                    'not-started': '未実施',
+                    'in-progress': '進行中',
+                    'completed': '完了'
+                };
+                const formattedDate = new Date(todo.date).toLocaleDateString('ja-JP', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                return `
+                    <div class="todo-item ${dateClass}">
+                        <div class="todo-content">${escapeHtml(todo.text)}</div>
+                        <div class="todo-date">📅 ${formattedDate}</div>
+                        <div class="todo-status status-${todo.status}">${statusText[todo.status]}</div>
+                        <div>
+                            <button class="btn-edit" onclick="editTodo(${todo.id})">編集</button>
+                            <button class="btn-delete" onclick="deleteTodo(${todo.id})">完了</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * F-007: 統計情報表示機能
+         * 総タスク数、進行中、未実施の数を統計カードで表示する
+         */
+        function updateStats() {
+            const notStarted = todos.filter(t => t.status === 'not-started').length;
+            const inProgress = todos.filter(t => t.status === 'in-progress').length;
+            
+            document.getElementById('total-count').textContent = todos.length;
+            document.getElementById('in-progress-count').textContent = inProgress;
+            document.getElementById('not-started-count').textContent = notStarted;
+        }
+
+        /**
+         * XSS対策: HTMLエスケープ処理
+         * ユーザー入力値を安全に表示するためのエスケープ処理
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /**
+         * F-011: 手動メール送信機能
+         * F-010: 自動メール送信機能（この関数を呼び出し）
+         * 未完了（ステータスが未実施、進行中）のTodoをメール送信する
+         * mailtoリンクを使用してメールクライアントを開く
+         */
+        function sendEmail() {
+            const incompleteTodos = todos.filter(t => t.status !== 'completed');
+            
+            if (incompleteTodos.length === 0) {
+                alert('未完了のTodoがありません。');
+                return;
+            }
+
+            let emailBody = '未完了のTodoリスト\n\n';
+            incompleteTodos.forEach((todo, index) => {
+                const statusText = {
+                    'not-started': '未実施',
+                    'in-progress': '進行中'
+                };
+                const formattedDate = new Date(todo.date).toLocaleDateString('ja-JP', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                emailBody += `${index + 1}. ${todo.text}\n`;
+                emailBody += `   納期: ${formattedDate}\n`;
+                emailBody += `   ステータス: ${statusText[todo.status]}\n\n`;
+            });
+
+            // mailtoリンクを作成（要件: mailtoリンクを使用）
+            const subject = encodeURIComponent('未完了Todoリスト');
+            const body = encodeURIComponent(emailBody);
+            const mailtoLink = `mailto:${emailAddress}?subject=${subject}&body=${body}`;
+            
+            try {
+                window.location.href = mailtoLink;
+            } catch (error) {
+                console.error('メール送信に失敗しました:', error);
+                alert('メール送信に失敗しました。メールクライアントが設定されているか確認してください。');
+            }
+        }
+
+        /**
+         * F-010: 自動メール送信機能
+         * 未完了（ステータスが未実施、進行中）のTodoを毎朝6時に指定メールアドレスに自動送付する
+         * 注意: ブラウザが開いている場合のみ動作する
+         */
+        function scheduleDailyEmail() {
+            // 既存のインターバルをクリア
+            if (emailInterval) {
+                clearInterval(emailInterval);
+            }
+
+            const now = new Date();
+            const sixAM = new Date();
+            sixAM.setHours(6, 0, 0, 0);
+
+            // 6時を過ぎている場合は翌日の6時に設定
+            if (now > sixAM) {
+                sixAM.setDate(sixAM.getDate() + 1);
+            }
+
+            const timeUntilSixAM = sixAM - now;
+
+            setTimeout(() => {
+                sendEmail();
+                // 24時間ごとに繰り返し
+                emailInterval = setInterval(sendEmail, 24 * 60 * 60 * 1000);
+            }, timeUntilSixAM);
+        }
+
+        /**
+         * 設定モーダルを開く
+         * F-012: メールアドレス設定機能
+         * F-013: カラーテーマ変更機能
+         */
+        function openSettingsModal() {
+            document.getElementById('email-address').value = emailAddress;
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                try {
+                    const theme = JSON.parse(savedTheme);
+                    document.getElementById('color-1').value = theme.color1;
+                    document.getElementById('color-2').value = theme.color2;
+                } catch (error) {
+                    console.error('テーマの読み込みに失敗しました:', error);
+                }
+            }
+            document.getElementById('settingsModal').style.display = 'block';
+        }
+
+        /**
+         * 設定モーダルを閉じる
+         */
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        /**
+         * F-012: メールアドレス設定機能
+         * F-013: カラーテーマ変更機能
+         * 設定を保存する
+         */
+        function saveSettings() {
+            const newEmail = document.getElementById('email-address').value.trim();
+            if (newEmail && newEmail.includes('@')) {
+                emailAddress = newEmail;
+                try {
+                    localStorage.setItem('emailAddress', emailAddress);
+                } catch (error) {
+                    console.error('メールアドレスの保存に失敗しました:', error);
+                }
+            }
+
+            const color1 = document.getElementById('color-1').value;
+            const color2 = document.getElementById('color-2').value;
+            applyCustomTheme(color1, color2);
+            
+            const theme = { color1, color2 };
+            try {
+                localStorage.setItem('theme', JSON.stringify(theme));
+            } catch (error) {
+                console.error('テーマの保存に失敗しました:', error);
+            }
+
+            closeSettingsModal();
+            scheduleDailyEmail();  // メールアドレス変更時にスケジュールを再設定
+        }
+
+        /**
+         * F-013: カラーテーマ変更機能
+         * カスタムテーマを適用する
+         */
+        function applyCustomTheme(color1, color2) {
+            document.documentElement.style.setProperty('--primary-color-1', color1);
+            document.documentElement.style.setProperty('--primary-color-2', color2);
+            document.documentElement.style.setProperty('--stat-card-bg', `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`);
+            document.documentElement.style.setProperty('--button-bg', `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`);
+            document.documentElement.style.setProperty('--body-bg', `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`);
+        }
+
+        /**
+         * F-013: カラーテーマ変更機能
+         * プリセットテーマを適用する
+         */
+        function applyTheme(themeName) {
+            const themes = {
+                purple: { color1: '#667eea', color2: '#764ba2' },
+                blue: { color1: '#4facfe', color2: '#00f2fe' },
+                green: { color1: '#43e97b', color2: '#38f9d7' },
+                orange: { color1: '#fa709a', color2: '#fee140' },
+                red: { color1: '#ff6b6b', color2: '#ee5a6f' },
+                dark: { color1: '#2c3e50', color2: '#34495e' }
+            };
+
+            const theme = themes[themeName];
+            if (theme) {
+                document.getElementById('color-1').value = theme.color1;
+                document.getElementById('color-2').value = theme.color2;
+                applyCustomTheme(theme.color1, theme.color2);
+            }
+        }
+
+        /**
+         * ユーザビリティ向上: EnterキーでTodoを追加
+         * パフォーマンス要件: 操作は即座に反映される
+         */
+        document.getElementById('todo-text').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+
+        /**
+         * ユーザビリティ向上: モーダル外クリックで閉じる
+         */
+        window.onclick = function(event) {
+            const editModal = document.getElementById('editModal');
+            const settingsModal = document.getElementById('settingsModal');
+            if (event.target === editModal) {
+                closeEditModal();
+            }
+            if (event.target === settingsModal) {
+                closeSettingsModal();
+            }
+        }
+
+        /**
+         * 初期化処理
+         * ページ読み込み時にデータを復元し、画面を表示する
+         * パフォーマンス要件: 画面表示は1秒以内
+         */
+        loadTodos();
+    </script>
+</body>
+</html>
